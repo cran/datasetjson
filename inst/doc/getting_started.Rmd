@@ -44,7 +44,7 @@ iris_items
 
 This data frame has 7 columns, 4 of which are strictly required. This is defined by the [CDISC Dataset JSON Specification](https://www.cdisc.org/dataset-json).
 
-| **﻿Attribute** | **Requirement** | **Description**                                                                                                                |
+| **Attribute** | **Requirement** | **Description**                                                                                                                |
 |---------------|-----------------|--------------------------------------------------------------------------------------------------------------------------------|
 | OID           | Required        | OID of a variable (must correspond to the variable OID in the Define-XML file)                                                 |
 | name          | Required        | Variable name                                                                                                                  |
@@ -148,7 +148,7 @@ write_dataset_json(ds_updated, file="iris.json")
 The `write_dataset_json()` also has the option to return the JSON output as a character string.
 
 ```{r write_char}
-js <- write_dataset_json(ds_updated)
+js <- write_dataset_json(ds_updated, pretty=TRUE)
 cat(js)
 ```
 

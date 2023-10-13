@@ -78,7 +78,7 @@ ds_json_from_meta <- dataset_json(
 #  write_dataset_json(ds_updated, file="iris.json")
 
 ## ----write_char---------------------------------------------------------------
-js <- write_dataset_json(ds_updated)
+js <- write_dataset_json(ds_updated, pretty=TRUE)
 cat(js)
 
 ## ----read, eval=FALSE---------------------------------------------------------

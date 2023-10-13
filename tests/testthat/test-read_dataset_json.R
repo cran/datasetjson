@@ -50,3 +50,22 @@ test_that("read_dataset_json matches xpt", {
   expect_equal(nrow(e), 87)
 
 })
+
+test_that("Dataset JSON can be read from a URL", {
+  file_path <- test_path("testdata", "ta.json")
+  url_file_path <- paste0("file://", normalizePath(test_path("testdata", "ta.json")))
+
+  from_disk <- read_dataset_json(file_path)
+  from_url <- read_dataset_json(url_file_path)
+
+  expect_equal(from_disk, from_url)
+})
+
+test_that("Dataset JSON can be read from imported string", {
+  ds_json <- dataset_json(iris[1:5, ], "IG.IRIS", "IRIS", "Iris", iris_items)
+  js <- write_dataset_json(ds_json, pretty=TRUE)
+  expect_silent(dat <- read_dataset_json(js))
+  x <- iris
+  x[5] <- as.character(x[[5]])
+  expect_equal(x[1:5, ], dat, ignore_attr=TRUE)
+})
