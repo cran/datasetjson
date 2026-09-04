@@ -34,7 +34,6 @@
 #'these fields.
 #'
 #'@param file File path or URL of a Dataset JSON file
-#' @param decimals_as_floats Convert variables of "decimal" type to float
 #'
 #'@return A dataframe with additional attributes attached containing the
 #'  DatasetJSON metadata.
@@ -42,70 +41,78 @@
 #'
 #' @examples
 #' # Read from disk
+#' dat <- read_dataset_json(datasetjson_example("dm.json"))
+#'
+#' # Read from a URL
 #' \dontrun{
-#'   dat <- read_dataset_json("path/to/file.json")
-#'  # Read file from URL
-#'   dat <- dataset_json('https://www.somesite.com/file.json')
+#'   dat <- read_dataset_json('https://www.somesite.com/file.json')
 #' }
 #'
 #' # Read from an already imported character vector
-#' ds_json <- dataset_json(iris, "IG.IRIS", "IRIS", "Iris", columns=iris_items)
+#' ds_json <- dataset_json(
+#'   iris,
+#'   item_oid = "IG.IRIS",
+#'   name = "IRIS",
+#'   dataset_label = "Iris",
+#'   columns = iris_items
+#' )
 #' js <- write_dataset_json(ds_json)
 #' dat <- read_dataset_json(js)
-read_dataset_json <- function(file, decimals_as_floats=FALSE) {
-
-  json_opts <- yyjsonr::opts_read_json(
-    promote_num_to_string = TRUE
-  )
+read_dataset_json <- function(file) {
 
   if (path_is_url(file)) {
     # Url?
-    file_contents <- read_from_url(file)
-    ds_json <- yyjsonr::read_json_str(
-      file_contents,
-      opts = json_opts
-    )
+    parsed <- .Call(C_read_dsjson_str, read_from_url(file))
   } else if (file.exists(file)) {
     # File on disk?
-    ds_json <- yyjsonr::read_json_file(
-      file,
-      opts = json_opts
-    )
+    parsed <- .Call(C_read_dsjson_file, file)
   } else {
     # Direct file contents?
-    ds_json <- yyjsonr::read_json_str(
-      file,
-      opts = json_opts
-    )
+    parsed <- .Call(C_read_dsjson_str, file)
   }
 
-  # Pull the data and items
-  d <- as.data.frame(ds_json$rows)
+  build_datasetjson(parsed)
+}
+
+#' Assemble a datasetjson object from the native parser output
+#'
+#' Shared by the JSON and NDJSON readers - both hand back the same list of
+#' metadata, column definitions and already-typed data columns.
+#'
+#' @param parsed The list returned by the C reader
+#'
+#' @return A datasetjson object
+#' @noRd
+build_datasetjson <- function(parsed) {
+  ds_json <- parsed
+  # C returns column metadata as a list of equal-length vectors
+  ds_json$columns <- as.data.frame(ds_json$columns, stringsAsFactors = FALSE)
   items <- ds_json$columns
 
-  # Start setting attributes
-  colnames(d) <- items$name
+  # Columns arrive from C already typed from the `columns` metadata - integers
+  # as integer, float/double/decimal as double parsed in C. Numbers never pass
+  # through as.double(), which is not correctly rounded (see #97).
+  d <- ds_json$data
+  attr(d, "row.names") <- .set_row_names(length(d[[1L]]))
+  class(d) <- "data.frame"
 
-  # Process type conversions
+  # Date/time class construction stays in R; C delivers the primitive type
   dt <- items$dataType
   tdt <- items$targetDataType
-  int_cols <- dt == "integer"
-  if (decimals_as_floats) {
-    flt_cols <- dt %in% c("float", "double")
-    dec_cols <- dt == "decimal" & tdt == "decimal"
-    dbl_cols <- flt_cols | dec_cols
-  } else {
-    dbl_cols <- dt %in% c("float", "double")
-  }
-  bool_cols <- dt == "boolean"
-  d[int_cols] <- lapply(d[int_cols], as.integer)
-  d[dbl_cols] <- lapply(d[dbl_cols], as.double)
-  d[bool_cols] <- lapply(d[bool_cols], as.logical)
-
   d <- date_time_conversions(d, dt, tdt)
 
   # Apply variable labels
   d[names(d)] <- lapply(items$name, set_col_attr, d, 'label', items)
+
+  # Apply SAS format from displayFormat
+  if (!is.null(items$displayFormat)) {
+    # Iterate only over columns that have a displayFormat value
+    for (nm in items$name[!is.na(items$displayFormat)]) {
+      # Set format.sas directly from items metadata (recognized by haven and
+      # SAS-aware tools)
+      attr(d[[nm]], 'format.sas') <- items$displayFormat[items$name == nm]
+    }
+  }
 
   ds_attr <- dataset_json(
     d,
@@ -125,8 +132,24 @@ read_dataset_json <- function(file, decimals_as_floats=FALSE) {
   )
 
   # Apply records and column attribute
-  if(ds_json$records != nrow(d)) {
-    warning("The number of rows in the data does not match the number of records recorded in the metadata.")
+  if (is.null(ds_json$records)) {
+    # `records` is required by the Dataset JSON standard, so its absence means
+    # the source file is incomplete. Fall back to the row count, but say so -
+    # without it there is nothing to check the data against.
+    warning(
+      "The source file does not contain a `records` value, which the Dataset ",
+      "JSON standard requires. It has been set to the number of rows read (",
+      nrow(d), "), so the row count could not be verified against the file ",
+      "metadata.",
+      call. = FALSE
+    )
+    ds_json$records <- nrow(d)
+  }
+  if (ds_json$records != nrow(d)) {
+    warning(
+      "The number of rows in the data does not match the number of records ",
+      "recorded in the metadata."
+    )
   }
 
   attr(ds_attr, 'records') <- ds_json$records

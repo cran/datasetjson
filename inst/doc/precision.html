@@ -48,8 +48,9 @@ overflow: visible;
 }
 </style>
 <style type="text/css" data-origin="pandoc">
+html { -webkit-text-size-adjust: 100%; }
 pre > code.sourceCode { white-space: pre; position: relative; }
-pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
 pre > code.sourceCode > span:empty { height: 1.2em; }
 .sourceCode { overflow: visible; }
 code.sourceCode > span { color: inherit; text-decoration: inherit; }
@@ -60,7 +61,7 @@ div.sourceCode { overflow: auto; }
 }
 @media print {
 pre > code.sourceCode { white-space: pre-wrap; }
-pre > code.sourceCode > span { display: inline-block; text-indent: -5em; padding-left: 5em; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
 }
 pre.numberSource code
 { counter-reset: source-line 0; }
@@ -340,15 +341,19 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 
 
 
-<p>Numeric precision and issues with floating point decimals is a common
-problem to come across when working with data. Dataset JSON is not
-immune to these issues. Instead of writing out direct binary
-representations of the floating point numbers, which will vary depending
-on the system being used and the standard followed, Dataset JSON writes
-out character representations of these numbers. As such, when the
-numbers are serialized from numeric to character, and then read back
-into numeric format, you may come across precision issues.</p>
-<p>Consider the following example:</p>
+<p>Numeric precision and issues with floating point decimals are a
+common problem when working with data. Dataset JSON is not immune to
+these issues. Instead of writing out direct binary representations of
+floating point numbers, which vary depending on the system being used
+and the standard followed, Dataset JSON writes out character
+representations of these numbers. Whenever a number is serialized to
+text and parsed back, precision can be lost.</p>
+<p><strong>{datasetjson}</strong> parses and serializes numbers in C,
+using the <a href="https://github.com/ibireme/yyjson">yyjson</a> library
+that ships with the package. Numbers are written using the shortest text
+that reads back as the same value, and read straight into a double
+without passing through R’s <code>as.double()</code>. The practical
+effect is that a value survives a write and read unchanged:</p>
 <div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">library</span>(datasetjson)</span>
 <span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
 <span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a><span class="co">#&gt; </span></span>
@@ -391,25 +396,24 @@ into numeric format, you may come across precision issues.</p>
 <span id="cb1-40"><a href="#cb1-40" tabindex="-1"></a>out <span class="ot">&lt;-</span> <span class="fu">read_dataset_json</span>(json_out)</span>
 <span id="cb1-41"><a href="#cb1-41" tabindex="-1"></a></span>
 <span id="cb1-42"><a href="#cb1-42" tabindex="-1"></a>test_df<span class="sc">$</span>float_col <span class="sc">-</span> out<span class="sc">$</span>float_col</span>
-<span id="cb1-43"><a href="#cb1-43" tabindex="-1"></a><span class="co">#&gt; [1] -3.333330e-07 -3.333333e-07  3.333333e-07  4.594595e-07 -1.428571e-07</span></span>
+<span id="cb1-43"><a href="#cb1-43" tabindex="-1"></a><span class="co">#&gt; [1] 0 0 0 0 0</span></span>
 <span id="cb1-44"><a href="#cb1-44" tabindex="-1"></a><span class="co">#&gt; attr(,&quot;label&quot;)</span></span>
 <span id="cb1-45"><a href="#cb1-45" tabindex="-1"></a><span class="co">#&gt; [1] &quot;Test column long decimal&quot;</span></span></code></pre></div>
-<p>In this case, we start seeing differences at the 7th decimal point.
-To look at a specific value, the input of
-<code>143.66666666666699825</code> is written out in the JSON file as
-<code>143.666666666667</code>. This issue isn’t unique to R either. If
-you’re ever converted numeric to character and back to numeric in SAS,
-you’ll likely have encountered a similar problem.</p>
-<p>In the <strong>{datasetjson}</strong> package, the
-<strong>{yyjsonr}</strong> package is doing the heavy lifting of
-serializing the R numeric value into a character string. The underlying
-C library has some <a href="https://github.com/ibireme/yyjson/commit/6d416047822d86d53a3a0b45a6a5abf28383a1dc">recent
-updates</a> to work on improving read output number precision which we
-hope will improve the handling.</p>
-<p>Another way to handle numeric precision issues is to use the
-“decimal” types that’s available in the Dataset JSON standard. From the
-<a href="https://wiki.cdisc.org/display/PUB/Precision+and+Rounding">user
-guide</a>, this can be described as follows:</p>
+<p>Every difference is exactly zero: the values that came back are
+bit-for-bit the values that went in, and that holds across the full
+range of double precision, from <code>1e-300</code> to
+<code>1e+300</code>.</p>
+<p>This has not always been true. Before version 0.4.0 the numbers were
+converted to text by the JSON library in use at the time, at a fixed six
+decimal places. Values were rounded at around the seventh decimal, and
+anything smaller than roughly <code>5e-7</code> was read back as exactly
+<code>0</code>. If you have files written by an earlier version of the
+package, the data in them is fine - the loss happened on read, so
+re-reading them with this version recovers the original values.</p>
+<div id="the-decimal-data-type" class="section level2">
+<h2>The decimal data type</h2>
+<p>The Dataset JSON standard also offers a “decimal” type. From the <a href="https://wiki.cdisc.org/display/PUB/Precision+and+Rounding">user
+guide</a>:</p>
 <blockquote>
 <h2 id="decimal-data-type">Decimal Data Type</h2>
 <p>Although the pilot findings on precision and rounding did not point
@@ -427,45 +431,162 @@ the decimal datatype or closest approximation available in the receiving
 technology. Note that not all technologies support an explicit decimal
 datatype.</p>
 </blockquote>
-<p>In order to address this problem, we’ve added the options
-<code>floats_as_decimals</code> and <code>digits</code> to
-<code>write_dataset_json()</code> and <code>decimals_as_floats</code> to
-<code>read_dataset_json()</code>.</p>
-<p>Considering the example before, here’s how these options can
-help.</p>
-<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a>json_out <span class="ot">&lt;-</span><span class="fu">write_dataset_json</span>(dsjson, <span class="at">float_as_decimals =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a></span>
-<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a>out <span class="ot">&lt;-</span> <span class="fu">read_dataset_json</span>(json_out, <span class="at">decimals_as_floats =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a></span>
-<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a>test_df<span class="sc">$</span>float_col <span class="sc">-</span> out<span class="sc">$</span>float_col</span>
-<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a><span class="co">#&gt; [1] 0 0 0 0 0</span></span>
-<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a><span class="co">#&gt; attr(,&quot;label&quot;)</span></span>
-<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a><span class="co">#&gt; [1] &quot;Test column long decimal&quot;</span></span></code></pre></div>
-<p>By manually handling how the decimal precision is rendered, the
-values were able to serialize and re-import more effectively.</p>
-<p>There are a few reasons we’ve chosen to NOT make this default
-behavior:</p>
+<p><code>write_dataset_json()</code> supports this through
+<code>float_as_decimals</code>. When set, float columns are written as
+<code>decimal</code>/<code>decimal</code> and the values are quoted, and
+<code>read_dataset_json()</code> converts them back to numeric on read
+per the specification.</p>
+<p>Because this is no longer needed to protect precision, setting it
+warns:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a>json_out <span class="ot">&lt;-</span> <span class="fu">write_dataset_json</span>(dsjson, <span class="at">float_as_decimals =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a><span class="co">#&gt; Warning: As of datasetjson 0.4.0 numbers are written and read at full</span></span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a><span class="co">#&gt; precision, so `float_as_decimals = TRUE` is no longer needed to protect against</span></span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a><span class="co">#&gt; rounding and `FALSE` is preferred. Set it only when the receiving system</span></span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a><span class="co">#&gt; requires the `decimal` data type.</span></span>
+<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a></span>
+<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a>out <span class="ot">&lt;-</span> <span class="fu">read_dataset_json</span>(json_out)</span>
+<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a></span>
+<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a>test_df<span class="sc">$</span>float_col <span class="sc">-</span> out<span class="sc">$</span>float_col</span>
+<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a><span class="co">#&gt; [1] 0 0 0 0 0</span></span>
+<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a><span class="co">#&gt; attr(,&quot;label&quot;)</span></span>
+<span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a><span class="co">#&gt; [1] &quot;Test column long decimal&quot;</span></span></code></pre></div>
+<p>The result is the same, because both paths are exact.
+<strong><code>float_as_decimals</code> is an interoperability choice,
+not a precision workaround.</strong> Reach for it when the system
+receiving your file needs numbers presented as strings; leave it off
+otherwise. It remains off by default for two reasons:</p>
 <ul>
-<li>This inherently adds overhead, because we convert the values prior
-to letting <code>yyjsonr</code> serialize them</li>
-<li>We’re changing the way the metadata is writing to use the
-<code>decimal</code> type. While the standard supports the use of the
-<code>decimal</code> type, it’s an extra step that that the consuming
-system needs to be aware of, and Dataset JSON is still a young
-standard.</li>
-<li>Our hope is that the <code>yyjson</code> C package grows to make
-this extra step less necessary</li>
+<li>Writing the <code>decimal</code> type is an extra step the consuming
+system has to be aware of, and Dataset JSON is still a young
+standard</li>
+<li>Quoted numbers make for larger files with no gain in fidelity</li>
 </ul>
-<p>As one last note, we default our choice of decimal precision to use
-16 digits. The reason we’ve chosen to do this is as follows:</p>
-<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">format</span>(.<span class="dv">2</span>, <span class="at">digits=</span><span class="dv">16</span>))</span>
-<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a><span class="co">#&gt; [1] &quot;0.2&quot;</span></span>
-<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">format</span>(.<span class="dv">2</span>, <span class="at">digits=</span><span class="dv">17</span>))</span>
-<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a><span class="co">#&gt; [1] &quot;0.20000000000000001&quot;</span></span></code></pre></div>
-<p>After a certain point, displaying extra digits is just going to show
-the where floating point values start to break down. 16 digits balances
-preserving the precision of output without turning low precision numbers
-into overly precise ones.</p>
+</div>
+<div id="a-note-on-digits" class="section level2">
+<h2>A note on <code>digits</code></h2>
+<p><code>digits</code> is deprecated and ignored. Decimals are written
+at whatever precision reads back as the same value, so there is nothing
+left for it to control, and supplying it warns.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="fu">cat</span>(<span class="fu">write_dataset_json</span>(dsjson, <span class="at">float_as_decimals =</span> <span class="cn">TRUE</span>, <span class="at">pretty =</span> <span class="cn">TRUE</span>))</span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a><span class="co">#&gt; {</span></span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a><span class="co">#&gt;     &quot;datasetJSONCreationDateTime&quot;: &quot;2026-09-03T20:47:20&quot;,</span></span>
+<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a><span class="co">#&gt;     &quot;datasetJSONVersion&quot;: &quot;1.1.0&quot;,</span></span>
+<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a><span class="co">#&gt;     &quot;itemGroupOID&quot;: &quot;test_df&quot;,</span></span>
+<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a><span class="co">#&gt;     &quot;records&quot;: 5,</span></span>
+<span id="cb3-7"><a href="#cb3-7" tabindex="-1"></a><span class="co">#&gt;     &quot;name&quot;: &quot;test_df&quot;,</span></span>
+<span id="cb3-8"><a href="#cb3-8" tabindex="-1"></a><span class="co">#&gt;     &quot;label&quot;: &quot;test_df&quot;,</span></span>
+<span id="cb3-9"><a href="#cb3-9" tabindex="-1"></a><span class="co">#&gt;     &quot;columns&quot;: [</span></span>
+<span id="cb3-10"><a href="#cb3-10" tabindex="-1"></a><span class="co">#&gt;         {</span></span>
+<span id="cb3-11"><a href="#cb3-11" tabindex="-1"></a><span class="co">#&gt;             &quot;itemOID&quot;: &quot;IT.IR.Sepal.Length&quot;,</span></span>
+<span id="cb3-12"><a href="#cb3-12" tabindex="-1"></a><span class="co">#&gt;             &quot;name&quot;: &quot;Sepal.Length&quot;,</span></span>
+<span id="cb3-13"><a href="#cb3-13" tabindex="-1"></a><span class="co">#&gt;             &quot;label&quot;: &quot;Sepal Length&quot;,</span></span>
+<span id="cb3-14"><a href="#cb3-14" tabindex="-1"></a><span class="co">#&gt;             &quot;dataType&quot;: &quot;decimal&quot;,</span></span>
+<span id="cb3-15"><a href="#cb3-15" tabindex="-1"></a><span class="co">#&gt;             &quot;keySequence&quot;: 2,</span></span>
+<span id="cb3-16"><a href="#cb3-16" tabindex="-1"></a><span class="co">#&gt;             &quot;targetDataType&quot;: &quot;decimal&quot;</span></span>
+<span id="cb3-17"><a href="#cb3-17" tabindex="-1"></a><span class="co">#&gt;         },</span></span>
+<span id="cb3-18"><a href="#cb3-18" tabindex="-1"></a><span class="co">#&gt;         {</span></span>
+<span id="cb3-19"><a href="#cb3-19" tabindex="-1"></a><span class="co">#&gt;             &quot;itemOID&quot;: &quot;IT.IR.Sepal.Width&quot;,</span></span>
+<span id="cb3-20"><a href="#cb3-20" tabindex="-1"></a><span class="co">#&gt;             &quot;name&quot;: &quot;Sepal.Width&quot;,</span></span>
+<span id="cb3-21"><a href="#cb3-21" tabindex="-1"></a><span class="co">#&gt;             &quot;label&quot;: &quot;Sepal Width&quot;,</span></span>
+<span id="cb3-22"><a href="#cb3-22" tabindex="-1"></a><span class="co">#&gt;             &quot;dataType&quot;: &quot;decimal&quot;,</span></span>
+<span id="cb3-23"><a href="#cb3-23" tabindex="-1"></a><span class="co">#&gt;             &quot;targetDataType&quot;: &quot;decimal&quot;</span></span>
+<span id="cb3-24"><a href="#cb3-24" tabindex="-1"></a><span class="co">#&gt;         },</span></span>
+<span id="cb3-25"><a href="#cb3-25" tabindex="-1"></a><span class="co">#&gt;         {</span></span>
+<span id="cb3-26"><a href="#cb3-26" tabindex="-1"></a><span class="co">#&gt;             &quot;itemOID&quot;: &quot;IT.IR.Petal.Length&quot;,</span></span>
+<span id="cb3-27"><a href="#cb3-27" tabindex="-1"></a><span class="co">#&gt;             &quot;name&quot;: &quot;Petal.Length&quot;,</span></span>
+<span id="cb3-28"><a href="#cb3-28" tabindex="-1"></a><span class="co">#&gt;             &quot;label&quot;: &quot;Petal Length&quot;,</span></span>
+<span id="cb3-29"><a href="#cb3-29" tabindex="-1"></a><span class="co">#&gt;             &quot;dataType&quot;: &quot;decimal&quot;,</span></span>
+<span id="cb3-30"><a href="#cb3-30" tabindex="-1"></a><span class="co">#&gt;             &quot;keySequence&quot;: 3,</span></span>
+<span id="cb3-31"><a href="#cb3-31" tabindex="-1"></a><span class="co">#&gt;             &quot;targetDataType&quot;: &quot;decimal&quot;</span></span>
+<span id="cb3-32"><a href="#cb3-32" tabindex="-1"></a><span class="co">#&gt;         },</span></span>
+<span id="cb3-33"><a href="#cb3-33" tabindex="-1"></a><span class="co">#&gt;         {</span></span>
+<span id="cb3-34"><a href="#cb3-34" tabindex="-1"></a><span class="co">#&gt;             &quot;itemOID&quot;: &quot;IT.IR.Petal.Width&quot;,</span></span>
+<span id="cb3-35"><a href="#cb3-35" tabindex="-1"></a><span class="co">#&gt;             &quot;name&quot;: &quot;Petal.Width&quot;,</span></span>
+<span id="cb3-36"><a href="#cb3-36" tabindex="-1"></a><span class="co">#&gt;             &quot;label&quot;: &quot;Petal Width&quot;,</span></span>
+<span id="cb3-37"><a href="#cb3-37" tabindex="-1"></a><span class="co">#&gt;             &quot;dataType&quot;: &quot;decimal&quot;,</span></span>
+<span id="cb3-38"><a href="#cb3-38" tabindex="-1"></a><span class="co">#&gt;             &quot;targetDataType&quot;: &quot;decimal&quot;</span></span>
+<span id="cb3-39"><a href="#cb3-39" tabindex="-1"></a><span class="co">#&gt;         },</span></span>
+<span id="cb3-40"><a href="#cb3-40" tabindex="-1"></a><span class="co">#&gt;         {</span></span>
+<span id="cb3-41"><a href="#cb3-41" tabindex="-1"></a><span class="co">#&gt;             &quot;itemOID&quot;: &quot;IT.IR.Species&quot;,</span></span>
+<span id="cb3-42"><a href="#cb3-42" tabindex="-1"></a><span class="co">#&gt;             &quot;name&quot;: &quot;Species&quot;,</span></span>
+<span id="cb3-43"><a href="#cb3-43" tabindex="-1"></a><span class="co">#&gt;             &quot;label&quot;: &quot;Flower Species&quot;,</span></span>
+<span id="cb3-44"><a href="#cb3-44" tabindex="-1"></a><span class="co">#&gt;             &quot;dataType&quot;: &quot;string&quot;,</span></span>
+<span id="cb3-45"><a href="#cb3-45" tabindex="-1"></a><span class="co">#&gt;             &quot;length&quot;: 10,</span></span>
+<span id="cb3-46"><a href="#cb3-46" tabindex="-1"></a><span class="co">#&gt;             &quot;keySequence&quot;: 1</span></span>
+<span id="cb3-47"><a href="#cb3-47" tabindex="-1"></a><span class="co">#&gt;         },</span></span>
+<span id="cb3-48"><a href="#cb3-48" tabindex="-1"></a><span class="co">#&gt;         {</span></span>
+<span id="cb3-49"><a href="#cb3-49" tabindex="-1"></a><span class="co">#&gt;             &quot;itemOID&quot;: &quot;IT.IR.float_col&quot;,</span></span>
+<span id="cb3-50"><a href="#cb3-50" tabindex="-1"></a><span class="co">#&gt;             &quot;name&quot;: &quot;float_col&quot;,</span></span>
+<span id="cb3-51"><a href="#cb3-51" tabindex="-1"></a><span class="co">#&gt;             &quot;label&quot;: &quot;Test column long decimal&quot;,</span></span>
+<span id="cb3-52"><a href="#cb3-52" tabindex="-1"></a><span class="co">#&gt;             &quot;dataType&quot;: &quot;decimal&quot;,</span></span>
+<span id="cb3-53"><a href="#cb3-53" tabindex="-1"></a><span class="co">#&gt;             &quot;targetDataType&quot;: &quot;decimal&quot;</span></span>
+<span id="cb3-54"><a href="#cb3-54" tabindex="-1"></a><span class="co">#&gt;         }</span></span>
+<span id="cb3-55"><a href="#cb3-55" tabindex="-1"></a><span class="co">#&gt;     ],</span></span>
+<span id="cb3-56"><a href="#cb3-56" tabindex="-1"></a><span class="co">#&gt;     &quot;rows&quot;: [</span></span>
+<span id="cb3-57"><a href="#cb3-57" tabindex="-1"></a><span class="co">#&gt;         [</span></span>
+<span id="cb3-58"><a href="#cb3-58" tabindex="-1"></a><span class="co">#&gt;             &quot;5.1&quot;,</span></span>
+<span id="cb3-59"><a href="#cb3-59" tabindex="-1"></a><span class="co">#&gt;             &quot;3.5&quot;,</span></span>
+<span id="cb3-60"><a href="#cb3-60" tabindex="-1"></a><span class="co">#&gt;             &quot;1.4&quot;,</span></span>
+<span id="cb3-61"><a href="#cb3-61" tabindex="-1"></a><span class="co">#&gt;             &quot;0.2&quot;,</span></span>
+<span id="cb3-62"><a href="#cb3-62" tabindex="-1"></a><span class="co">#&gt;             &quot;setosa&quot;,</span></span>
+<span id="cb3-63"><a href="#cb3-63" tabindex="-1"></a><span class="co">#&gt;             &quot;143.666666666667&quot;</span></span>
+<span id="cb3-64"><a href="#cb3-64" tabindex="-1"></a><span class="co">#&gt;         ],</span></span>
+<span id="cb3-65"><a href="#cb3-65" tabindex="-1"></a><span class="co">#&gt;         [</span></span>
+<span id="cb3-66"><a href="#cb3-66" tabindex="-1"></a><span class="co">#&gt;             &quot;4.9&quot;,</span></span>
+<span id="cb3-67"><a href="#cb3-67" tabindex="-1"></a><span class="co">#&gt;             &quot;3&quot;,</span></span>
+<span id="cb3-68"><a href="#cb3-68" tabindex="-1"></a><span class="co">#&gt;             &quot;1.4&quot;,</span></span>
+<span id="cb3-69"><a href="#cb3-69" tabindex="-1"></a><span class="co">#&gt;             &quot;0.2&quot;,</span></span>
+<span id="cb3-70"><a href="#cb3-70" tabindex="-1"></a><span class="co">#&gt;             &quot;setosa&quot;,</span></span>
+<span id="cb3-71"><a href="#cb3-71" tabindex="-1"></a><span class="co">#&gt;             &quot;0.6666666666666666&quot;</span></span>
+<span id="cb3-72"><a href="#cb3-72" tabindex="-1"></a><span class="co">#&gt;         ],</span></span>
+<span id="cb3-73"><a href="#cb3-73" tabindex="-1"></a><span class="co">#&gt;         [</span></span>
+<span id="cb3-74"><a href="#cb3-74" tabindex="-1"></a><span class="co">#&gt;             &quot;4.7&quot;,</span></span>
+<span id="cb3-75"><a href="#cb3-75" tabindex="-1"></a><span class="co">#&gt;             &quot;3.2&quot;,</span></span>
+<span id="cb3-76"><a href="#cb3-76" tabindex="-1"></a><span class="co">#&gt;             &quot;1.3&quot;,</span></span>
+<span id="cb3-77"><a href="#cb3-77" tabindex="-1"></a><span class="co">#&gt;             &quot;0.2&quot;,</span></span>
+<span id="cb3-78"><a href="#cb3-78" tabindex="-1"></a><span class="co">#&gt;             &quot;setosa&quot;,</span></span>
+<span id="cb3-79"><a href="#cb3-79" tabindex="-1"></a><span class="co">#&gt;             &quot;0.3333333333333333&quot;</span></span>
+<span id="cb3-80"><a href="#cb3-80" tabindex="-1"></a><span class="co">#&gt;         ],</span></span>
+<span id="cb3-81"><a href="#cb3-81" tabindex="-1"></a><span class="co">#&gt;         [</span></span>
+<span id="cb3-82"><a href="#cb3-82" tabindex="-1"></a><span class="co">#&gt;             &quot;4.6&quot;,</span></span>
+<span id="cb3-83"><a href="#cb3-83" tabindex="-1"></a><span class="co">#&gt;             &quot;3.1&quot;,</span></span>
+<span id="cb3-84"><a href="#cb3-84" tabindex="-1"></a><span class="co">#&gt;             &quot;1.5&quot;,</span></span>
+<span id="cb3-85"><a href="#cb3-85" tabindex="-1"></a><span class="co">#&gt;             &quot;0.2&quot;,</span></span>
+<span id="cb3-86"><a href="#cb3-86" tabindex="-1"></a><span class="co">#&gt;             &quot;setosa&quot;,</span></span>
+<span id="cb3-87"><a href="#cb3-87" tabindex="-1"></a><span class="co">#&gt;             &quot;4.45945945945946&quot;</span></span>
+<span id="cb3-88"><a href="#cb3-88" tabindex="-1"></a><span class="co">#&gt;         ],</span></span>
+<span id="cb3-89"><a href="#cb3-89" tabindex="-1"></a><span class="co">#&gt;         [</span></span>
+<span id="cb3-90"><a href="#cb3-90" tabindex="-1"></a><span class="co">#&gt;             &quot;5&quot;,</span></span>
+<span id="cb3-91"><a href="#cb3-91" tabindex="-1"></a><span class="co">#&gt;             &quot;3.6&quot;,</span></span>
+<span id="cb3-92"><a href="#cb3-92" tabindex="-1"></a><span class="co">#&gt;             &quot;1.4&quot;,</span></span>
+<span id="cb3-93"><a href="#cb3-93" tabindex="-1"></a><span class="co">#&gt;             &quot;0.2&quot;,</span></span>
+<span id="cb3-94"><a href="#cb3-94" tabindex="-1"></a><span class="co">#&gt;             &quot;setosa&quot;,</span></span>
+<span id="cb3-95"><a href="#cb3-95" tabindex="-1"></a><span class="co">#&gt;             &quot;0.8571428571428571&quot;</span></span>
+<span id="cb3-96"><a href="#cb3-96" tabindex="-1"></a><span class="co">#&gt;         ]</span></span>
+<span id="cb3-97"><a href="#cb3-97" tabindex="-1"></a><span class="co">#&gt;     ]</span></span>
+<span id="cb3-98"><a href="#cb3-98" tabindex="-1"></a><span class="co">#&gt; }</span></span></code></pre></div>
+<p>If you need values at a fixed precision - to match another system’s
+output, say - format the column to character yourself and declare it as
+<code>decimal</code>/<code>decimal</code> in the column metadata. The
+writer passes such columns through verbatim:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a>fixed <span class="ot">&lt;-</span> test_df</span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a>fixed<span class="sc">$</span>float_col <span class="ot">&lt;-</span> <span class="fu">format</span>(fixed<span class="sc">$</span>float_col, <span class="at">digits =</span> <span class="dv">8</span>, <span class="at">trim =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a></span>
+<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a>fixed_items <span class="ot">&lt;-</span> test_items</span>
+<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a>fixed_items<span class="sc">$</span>dataType[fixed_items<span class="sc">$</span>name <span class="sc">==</span> <span class="st">&quot;float_col&quot;</span>] <span class="ot">&lt;-</span> <span class="st">&quot;decimal&quot;</span></span>
+<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a>fixed_items<span class="sc">$</span>targetDataType <span class="ot">&lt;-</span> <span class="fu">ifelse</span>(fixed_items<span class="sc">$</span>name <span class="sc">==</span> <span class="st">&quot;float_col&quot;</span>,</span>
+<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a>                                     <span class="st">&quot;decimal&quot;</span>, <span class="cn">NA_character_</span>)</span>
+<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a></span>
+<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a>fixed_json <span class="ot">&lt;-</span> <span class="fu">write_dataset_json</span>(</span>
+<span id="cb4-10"><a href="#cb4-10" tabindex="-1"></a>  <span class="fu">dataset_json</span>(fixed, <span class="at">item_oid =</span> <span class="st">&quot;test_df&quot;</span>, <span class="at">name =</span> <span class="st">&quot;test_df&quot;</span>,</span>
+<span id="cb4-11"><a href="#cb4-11" tabindex="-1"></a>               <span class="at">dataset_label =</span> <span class="st">&quot;test_df&quot;</span>, <span class="at">columns =</span> fixed_items)</span>
+<span id="cb4-12"><a href="#cb4-12" tabindex="-1"></a>)</span>
+<span id="cb4-13"><a href="#cb4-13" tabindex="-1"></a></span>
+<span id="cb4-14"><a href="#cb4-14" tabindex="-1"></a><span class="fu">read_dataset_json</span>(fixed_json)<span class="sc">$</span>float_col</span>
+<span id="cb4-15"><a href="#cb4-15" tabindex="-1"></a><span class="co">#&gt; [1] 143.6666667   0.6666667   0.3333333   4.4594595   0.8571429</span></span>
+<span id="cb4-16"><a href="#cb4-16" tabindex="-1"></a><span class="co">#&gt; attr(,&quot;label&quot;)</span></span>
+<span id="cb4-17"><a href="#cb4-17" tabindex="-1"></a><span class="co">#&gt; [1] &quot;Test column long decimal&quot;</span></span></code></pre></div>
+</div>
 
 
 

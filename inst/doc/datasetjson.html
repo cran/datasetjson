@@ -48,8 +48,9 @@ overflow: visible;
 }
 </style>
 <style type="text/css" data-origin="pandoc">
+html { -webkit-text-size-adjust: 100%; }
 pre > code.sourceCode { white-space: pre; position: relative; }
-pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
 pre > code.sourceCode > span:empty { height: 1.2em; }
 .sourceCode { overflow: visible; }
 code.sourceCode > span { color: inherit; text-decoration: inherit; }
@@ -60,7 +61,7 @@ div.sourceCode { overflow: auto; }
 }
 @media print {
 pre > code.sourceCode { white-space: pre-wrap; }
-pre > code.sourceCode > span { display: inline-block; text-indent: -5em; padding-left: 5em; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
 }
 pre.numberSource code
 { counter-reset: source-line 0; }
@@ -421,10 +422,13 @@ Define-XML file)</td>
 </tr>
 <tr class="odd">
 <td>targetDataType</td>
-<td>Required</td>
-<td>Type of the variable. Allowed values: “integer”, “decimal”.
-Indicates the data type into which the receiving system must transform
-the associated Dataset-JSON variable.</td>
+<td>Optional</td>
+<td>Allowed values: “integer”, “decimal”. Indicates the data type into
+which the receiving system must transform the variable. Only specify it
+when it differs from <code>dataType</code> and the data needs
+transforming - for example <code>integer</code> for the numeric dates
+and times used in ADaM, or <code>decimal</code> where a number is
+carried as a string.</td>
 </tr>
 <tr class="even">
 <td>length</td>
@@ -479,85 +483,85 @@ the JSON output as a character string.</p>
 <div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a>js <span class="ot">&lt;-</span> <span class="fu">write_dataset_json</span>(ds_json, <span class="at">pretty=</span><span class="cn">TRUE</span>)</span>
 <span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a><span class="fu">cat</span>(js)</span>
 <span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a><span class="co">#&gt; {</span></span>
-<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a><span class="co">#&gt;   &quot;datasetJSONCreationDateTime&quot;: &quot;2025-01-30T10:44:48&quot;,</span></span>
-<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a><span class="co">#&gt;   &quot;datasetJSONVersion&quot;: &quot;1.1.0&quot;,</span></span>
-<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a><span class="co">#&gt;   &quot;itemGroupOID&quot;: &quot;IG.IRIS&quot;,</span></span>
-<span id="cb5-7"><a href="#cb5-7" tabindex="-1"></a><span class="co">#&gt;   &quot;records&quot;: 5,</span></span>
-<span id="cb5-8"><a href="#cb5-8" tabindex="-1"></a><span class="co">#&gt;   &quot;name&quot;: &quot;IRIS&quot;,</span></span>
-<span id="cb5-9"><a href="#cb5-9" tabindex="-1"></a><span class="co">#&gt;   &quot;label&quot;: &quot;Iris&quot;,</span></span>
-<span id="cb5-10"><a href="#cb5-10" tabindex="-1"></a><span class="co">#&gt;   &quot;columns&quot;: [</span></span>
-<span id="cb5-11"><a href="#cb5-11" tabindex="-1"></a><span class="co">#&gt;     {</span></span>
-<span id="cb5-12"><a href="#cb5-12" tabindex="-1"></a><span class="co">#&gt;       &quot;itemOID&quot;: &quot;IT.IR.Sepal.Length&quot;,</span></span>
-<span id="cb5-13"><a href="#cb5-13" tabindex="-1"></a><span class="co">#&gt;       &quot;name&quot;: &quot;Sepal.Length&quot;,</span></span>
-<span id="cb5-14"><a href="#cb5-14" tabindex="-1"></a><span class="co">#&gt;       &quot;label&quot;: &quot;Sepal Length&quot;,</span></span>
-<span id="cb5-15"><a href="#cb5-15" tabindex="-1"></a><span class="co">#&gt;       &quot;dataType&quot;: &quot;float&quot;,</span></span>
-<span id="cb5-16"><a href="#cb5-16" tabindex="-1"></a><span class="co">#&gt;       &quot;keySequence&quot;: 2</span></span>
-<span id="cb5-17"><a href="#cb5-17" tabindex="-1"></a><span class="co">#&gt;     },</span></span>
-<span id="cb5-18"><a href="#cb5-18" tabindex="-1"></a><span class="co">#&gt;     {</span></span>
-<span id="cb5-19"><a href="#cb5-19" tabindex="-1"></a><span class="co">#&gt;       &quot;itemOID&quot;: &quot;IT.IR.Sepal.Width&quot;,</span></span>
-<span id="cb5-20"><a href="#cb5-20" tabindex="-1"></a><span class="co">#&gt;       &quot;name&quot;: &quot;Sepal.Width&quot;,</span></span>
-<span id="cb5-21"><a href="#cb5-21" tabindex="-1"></a><span class="co">#&gt;       &quot;label&quot;: &quot;Sepal Width&quot;,</span></span>
-<span id="cb5-22"><a href="#cb5-22" tabindex="-1"></a><span class="co">#&gt;       &quot;dataType&quot;: &quot;float&quot;</span></span>
-<span id="cb5-23"><a href="#cb5-23" tabindex="-1"></a><span class="co">#&gt;     },</span></span>
-<span id="cb5-24"><a href="#cb5-24" tabindex="-1"></a><span class="co">#&gt;     {</span></span>
-<span id="cb5-25"><a href="#cb5-25" tabindex="-1"></a><span class="co">#&gt;       &quot;itemOID&quot;: &quot;IT.IR.Petal.Length&quot;,</span></span>
-<span id="cb5-26"><a href="#cb5-26" tabindex="-1"></a><span class="co">#&gt;       &quot;name&quot;: &quot;Petal.Length&quot;,</span></span>
-<span id="cb5-27"><a href="#cb5-27" tabindex="-1"></a><span class="co">#&gt;       &quot;label&quot;: &quot;Petal Length&quot;,</span></span>
-<span id="cb5-28"><a href="#cb5-28" tabindex="-1"></a><span class="co">#&gt;       &quot;dataType&quot;: &quot;float&quot;,</span></span>
-<span id="cb5-29"><a href="#cb5-29" tabindex="-1"></a><span class="co">#&gt;       &quot;keySequence&quot;: 3</span></span>
-<span id="cb5-30"><a href="#cb5-30" tabindex="-1"></a><span class="co">#&gt;     },</span></span>
-<span id="cb5-31"><a href="#cb5-31" tabindex="-1"></a><span class="co">#&gt;     {</span></span>
-<span id="cb5-32"><a href="#cb5-32" tabindex="-1"></a><span class="co">#&gt;       &quot;itemOID&quot;: &quot;IT.IR.Petal.Width&quot;,</span></span>
-<span id="cb5-33"><a href="#cb5-33" tabindex="-1"></a><span class="co">#&gt;       &quot;name&quot;: &quot;Petal.Width&quot;,</span></span>
-<span id="cb5-34"><a href="#cb5-34" tabindex="-1"></a><span class="co">#&gt;       &quot;label&quot;: &quot;Petal Width&quot;,</span></span>
-<span id="cb5-35"><a href="#cb5-35" tabindex="-1"></a><span class="co">#&gt;       &quot;dataType&quot;: &quot;float&quot;</span></span>
-<span id="cb5-36"><a href="#cb5-36" tabindex="-1"></a><span class="co">#&gt;     },</span></span>
-<span id="cb5-37"><a href="#cb5-37" tabindex="-1"></a><span class="co">#&gt;     {</span></span>
-<span id="cb5-38"><a href="#cb5-38" tabindex="-1"></a><span class="co">#&gt;       &quot;itemOID&quot;: &quot;IT.IR.Species&quot;,</span></span>
-<span id="cb5-39"><a href="#cb5-39" tabindex="-1"></a><span class="co">#&gt;       &quot;name&quot;: &quot;Species&quot;,</span></span>
-<span id="cb5-40"><a href="#cb5-40" tabindex="-1"></a><span class="co">#&gt;       &quot;label&quot;: &quot;Flower Species&quot;,</span></span>
-<span id="cb5-41"><a href="#cb5-41" tabindex="-1"></a><span class="co">#&gt;       &quot;dataType&quot;: &quot;string&quot;,</span></span>
-<span id="cb5-42"><a href="#cb5-42" tabindex="-1"></a><span class="co">#&gt;       &quot;length&quot;: 10,</span></span>
-<span id="cb5-43"><a href="#cb5-43" tabindex="-1"></a><span class="co">#&gt;       &quot;keySequence&quot;: 1</span></span>
-<span id="cb5-44"><a href="#cb5-44" tabindex="-1"></a><span class="co">#&gt;     }</span></span>
-<span id="cb5-45"><a href="#cb5-45" tabindex="-1"></a><span class="co">#&gt;   ],</span></span>
-<span id="cb5-46"><a href="#cb5-46" tabindex="-1"></a><span class="co">#&gt;   &quot;rows&quot;: [</span></span>
-<span id="cb5-47"><a href="#cb5-47" tabindex="-1"></a><span class="co">#&gt;     [</span></span>
-<span id="cb5-48"><a href="#cb5-48" tabindex="-1"></a><span class="co">#&gt;       5.1,</span></span>
-<span id="cb5-49"><a href="#cb5-49" tabindex="-1"></a><span class="co">#&gt;       3.5,</span></span>
-<span id="cb5-50"><a href="#cb5-50" tabindex="-1"></a><span class="co">#&gt;       1.4,</span></span>
-<span id="cb5-51"><a href="#cb5-51" tabindex="-1"></a><span class="co">#&gt;       0.2,</span></span>
-<span id="cb5-52"><a href="#cb5-52" tabindex="-1"></a><span class="co">#&gt;       &quot;setosa&quot;</span></span>
-<span id="cb5-53"><a href="#cb5-53" tabindex="-1"></a><span class="co">#&gt;     ],</span></span>
-<span id="cb5-54"><a href="#cb5-54" tabindex="-1"></a><span class="co">#&gt;     [</span></span>
-<span id="cb5-55"><a href="#cb5-55" tabindex="-1"></a><span class="co">#&gt;       4.9,</span></span>
-<span id="cb5-56"><a href="#cb5-56" tabindex="-1"></a><span class="co">#&gt;       3.0,</span></span>
-<span id="cb5-57"><a href="#cb5-57" tabindex="-1"></a><span class="co">#&gt;       1.4,</span></span>
-<span id="cb5-58"><a href="#cb5-58" tabindex="-1"></a><span class="co">#&gt;       0.2,</span></span>
-<span id="cb5-59"><a href="#cb5-59" tabindex="-1"></a><span class="co">#&gt;       &quot;setosa&quot;</span></span>
-<span id="cb5-60"><a href="#cb5-60" tabindex="-1"></a><span class="co">#&gt;     ],</span></span>
-<span id="cb5-61"><a href="#cb5-61" tabindex="-1"></a><span class="co">#&gt;     [</span></span>
-<span id="cb5-62"><a href="#cb5-62" tabindex="-1"></a><span class="co">#&gt;       4.7,</span></span>
-<span id="cb5-63"><a href="#cb5-63" tabindex="-1"></a><span class="co">#&gt;       3.2,</span></span>
-<span id="cb5-64"><a href="#cb5-64" tabindex="-1"></a><span class="co">#&gt;       1.3,</span></span>
-<span id="cb5-65"><a href="#cb5-65" tabindex="-1"></a><span class="co">#&gt;       0.2,</span></span>
-<span id="cb5-66"><a href="#cb5-66" tabindex="-1"></a><span class="co">#&gt;       &quot;setosa&quot;</span></span>
-<span id="cb5-67"><a href="#cb5-67" tabindex="-1"></a><span class="co">#&gt;     ],</span></span>
-<span id="cb5-68"><a href="#cb5-68" tabindex="-1"></a><span class="co">#&gt;     [</span></span>
-<span id="cb5-69"><a href="#cb5-69" tabindex="-1"></a><span class="co">#&gt;       4.6,</span></span>
-<span id="cb5-70"><a href="#cb5-70" tabindex="-1"></a><span class="co">#&gt;       3.1,</span></span>
-<span id="cb5-71"><a href="#cb5-71" tabindex="-1"></a><span class="co">#&gt;       1.5,</span></span>
-<span id="cb5-72"><a href="#cb5-72" tabindex="-1"></a><span class="co">#&gt;       0.2,</span></span>
-<span id="cb5-73"><a href="#cb5-73" tabindex="-1"></a><span class="co">#&gt;       &quot;setosa&quot;</span></span>
-<span id="cb5-74"><a href="#cb5-74" tabindex="-1"></a><span class="co">#&gt;     ],</span></span>
-<span id="cb5-75"><a href="#cb5-75" tabindex="-1"></a><span class="co">#&gt;     [</span></span>
-<span id="cb5-76"><a href="#cb5-76" tabindex="-1"></a><span class="co">#&gt;       5.0,</span></span>
-<span id="cb5-77"><a href="#cb5-77" tabindex="-1"></a><span class="co">#&gt;       3.6,</span></span>
-<span id="cb5-78"><a href="#cb5-78" tabindex="-1"></a><span class="co">#&gt;       1.4,</span></span>
-<span id="cb5-79"><a href="#cb5-79" tabindex="-1"></a><span class="co">#&gt;       0.2,</span></span>
-<span id="cb5-80"><a href="#cb5-80" tabindex="-1"></a><span class="co">#&gt;       &quot;setosa&quot;</span></span>
-<span id="cb5-81"><a href="#cb5-81" tabindex="-1"></a><span class="co">#&gt;     ]</span></span>
-<span id="cb5-82"><a href="#cb5-82" tabindex="-1"></a><span class="co">#&gt;   ]</span></span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a><span class="co">#&gt;     &quot;datasetJSONCreationDateTime&quot;: &quot;2026-09-03T20:47:19&quot;,</span></span>
+<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a><span class="co">#&gt;     &quot;datasetJSONVersion&quot;: &quot;1.1.0&quot;,</span></span>
+<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a><span class="co">#&gt;     &quot;itemGroupOID&quot;: &quot;IG.IRIS&quot;,</span></span>
+<span id="cb5-7"><a href="#cb5-7" tabindex="-1"></a><span class="co">#&gt;     &quot;records&quot;: 5,</span></span>
+<span id="cb5-8"><a href="#cb5-8" tabindex="-1"></a><span class="co">#&gt;     &quot;name&quot;: &quot;IRIS&quot;,</span></span>
+<span id="cb5-9"><a href="#cb5-9" tabindex="-1"></a><span class="co">#&gt;     &quot;label&quot;: &quot;Iris&quot;,</span></span>
+<span id="cb5-10"><a href="#cb5-10" tabindex="-1"></a><span class="co">#&gt;     &quot;columns&quot;: [</span></span>
+<span id="cb5-11"><a href="#cb5-11" tabindex="-1"></a><span class="co">#&gt;         {</span></span>
+<span id="cb5-12"><a href="#cb5-12" tabindex="-1"></a><span class="co">#&gt;             &quot;itemOID&quot;: &quot;IT.IR.Sepal.Length&quot;,</span></span>
+<span id="cb5-13"><a href="#cb5-13" tabindex="-1"></a><span class="co">#&gt;             &quot;name&quot;: &quot;Sepal.Length&quot;,</span></span>
+<span id="cb5-14"><a href="#cb5-14" tabindex="-1"></a><span class="co">#&gt;             &quot;label&quot;: &quot;Sepal Length&quot;,</span></span>
+<span id="cb5-15"><a href="#cb5-15" tabindex="-1"></a><span class="co">#&gt;             &quot;dataType&quot;: &quot;float&quot;,</span></span>
+<span id="cb5-16"><a href="#cb5-16" tabindex="-1"></a><span class="co">#&gt;             &quot;keySequence&quot;: 2</span></span>
+<span id="cb5-17"><a href="#cb5-17" tabindex="-1"></a><span class="co">#&gt;         },</span></span>
+<span id="cb5-18"><a href="#cb5-18" tabindex="-1"></a><span class="co">#&gt;         {</span></span>
+<span id="cb5-19"><a href="#cb5-19" tabindex="-1"></a><span class="co">#&gt;             &quot;itemOID&quot;: &quot;IT.IR.Sepal.Width&quot;,</span></span>
+<span id="cb5-20"><a href="#cb5-20" tabindex="-1"></a><span class="co">#&gt;             &quot;name&quot;: &quot;Sepal.Width&quot;,</span></span>
+<span id="cb5-21"><a href="#cb5-21" tabindex="-1"></a><span class="co">#&gt;             &quot;label&quot;: &quot;Sepal Width&quot;,</span></span>
+<span id="cb5-22"><a href="#cb5-22" tabindex="-1"></a><span class="co">#&gt;             &quot;dataType&quot;: &quot;float&quot;</span></span>
+<span id="cb5-23"><a href="#cb5-23" tabindex="-1"></a><span class="co">#&gt;         },</span></span>
+<span id="cb5-24"><a href="#cb5-24" tabindex="-1"></a><span class="co">#&gt;         {</span></span>
+<span id="cb5-25"><a href="#cb5-25" tabindex="-1"></a><span class="co">#&gt;             &quot;itemOID&quot;: &quot;IT.IR.Petal.Length&quot;,</span></span>
+<span id="cb5-26"><a href="#cb5-26" tabindex="-1"></a><span class="co">#&gt;             &quot;name&quot;: &quot;Petal.Length&quot;,</span></span>
+<span id="cb5-27"><a href="#cb5-27" tabindex="-1"></a><span class="co">#&gt;             &quot;label&quot;: &quot;Petal Length&quot;,</span></span>
+<span id="cb5-28"><a href="#cb5-28" tabindex="-1"></a><span class="co">#&gt;             &quot;dataType&quot;: &quot;float&quot;,</span></span>
+<span id="cb5-29"><a href="#cb5-29" tabindex="-1"></a><span class="co">#&gt;             &quot;keySequence&quot;: 3</span></span>
+<span id="cb5-30"><a href="#cb5-30" tabindex="-1"></a><span class="co">#&gt;         },</span></span>
+<span id="cb5-31"><a href="#cb5-31" tabindex="-1"></a><span class="co">#&gt;         {</span></span>
+<span id="cb5-32"><a href="#cb5-32" tabindex="-1"></a><span class="co">#&gt;             &quot;itemOID&quot;: &quot;IT.IR.Petal.Width&quot;,</span></span>
+<span id="cb5-33"><a href="#cb5-33" tabindex="-1"></a><span class="co">#&gt;             &quot;name&quot;: &quot;Petal.Width&quot;,</span></span>
+<span id="cb5-34"><a href="#cb5-34" tabindex="-1"></a><span class="co">#&gt;             &quot;label&quot;: &quot;Petal Width&quot;,</span></span>
+<span id="cb5-35"><a href="#cb5-35" tabindex="-1"></a><span class="co">#&gt;             &quot;dataType&quot;: &quot;float&quot;</span></span>
+<span id="cb5-36"><a href="#cb5-36" tabindex="-1"></a><span class="co">#&gt;         },</span></span>
+<span id="cb5-37"><a href="#cb5-37" tabindex="-1"></a><span class="co">#&gt;         {</span></span>
+<span id="cb5-38"><a href="#cb5-38" tabindex="-1"></a><span class="co">#&gt;             &quot;itemOID&quot;: &quot;IT.IR.Species&quot;,</span></span>
+<span id="cb5-39"><a href="#cb5-39" tabindex="-1"></a><span class="co">#&gt;             &quot;name&quot;: &quot;Species&quot;,</span></span>
+<span id="cb5-40"><a href="#cb5-40" tabindex="-1"></a><span class="co">#&gt;             &quot;label&quot;: &quot;Flower Species&quot;,</span></span>
+<span id="cb5-41"><a href="#cb5-41" tabindex="-1"></a><span class="co">#&gt;             &quot;dataType&quot;: &quot;string&quot;,</span></span>
+<span id="cb5-42"><a href="#cb5-42" tabindex="-1"></a><span class="co">#&gt;             &quot;length&quot;: 10,</span></span>
+<span id="cb5-43"><a href="#cb5-43" tabindex="-1"></a><span class="co">#&gt;             &quot;keySequence&quot;: 1</span></span>
+<span id="cb5-44"><a href="#cb5-44" tabindex="-1"></a><span class="co">#&gt;         }</span></span>
+<span id="cb5-45"><a href="#cb5-45" tabindex="-1"></a><span class="co">#&gt;     ],</span></span>
+<span id="cb5-46"><a href="#cb5-46" tabindex="-1"></a><span class="co">#&gt;     &quot;rows&quot;: [</span></span>
+<span id="cb5-47"><a href="#cb5-47" tabindex="-1"></a><span class="co">#&gt;         [</span></span>
+<span id="cb5-48"><a href="#cb5-48" tabindex="-1"></a><span class="co">#&gt;             5.1,</span></span>
+<span id="cb5-49"><a href="#cb5-49" tabindex="-1"></a><span class="co">#&gt;             3.5,</span></span>
+<span id="cb5-50"><a href="#cb5-50" tabindex="-1"></a><span class="co">#&gt;             1.4,</span></span>
+<span id="cb5-51"><a href="#cb5-51" tabindex="-1"></a><span class="co">#&gt;             0.2,</span></span>
+<span id="cb5-52"><a href="#cb5-52" tabindex="-1"></a><span class="co">#&gt;             &quot;setosa&quot;</span></span>
+<span id="cb5-53"><a href="#cb5-53" tabindex="-1"></a><span class="co">#&gt;         ],</span></span>
+<span id="cb5-54"><a href="#cb5-54" tabindex="-1"></a><span class="co">#&gt;         [</span></span>
+<span id="cb5-55"><a href="#cb5-55" tabindex="-1"></a><span class="co">#&gt;             4.9,</span></span>
+<span id="cb5-56"><a href="#cb5-56" tabindex="-1"></a><span class="co">#&gt;             3.0,</span></span>
+<span id="cb5-57"><a href="#cb5-57" tabindex="-1"></a><span class="co">#&gt;             1.4,</span></span>
+<span id="cb5-58"><a href="#cb5-58" tabindex="-1"></a><span class="co">#&gt;             0.2,</span></span>
+<span id="cb5-59"><a href="#cb5-59" tabindex="-1"></a><span class="co">#&gt;             &quot;setosa&quot;</span></span>
+<span id="cb5-60"><a href="#cb5-60" tabindex="-1"></a><span class="co">#&gt;         ],</span></span>
+<span id="cb5-61"><a href="#cb5-61" tabindex="-1"></a><span class="co">#&gt;         [</span></span>
+<span id="cb5-62"><a href="#cb5-62" tabindex="-1"></a><span class="co">#&gt;             4.7,</span></span>
+<span id="cb5-63"><a href="#cb5-63" tabindex="-1"></a><span class="co">#&gt;             3.2,</span></span>
+<span id="cb5-64"><a href="#cb5-64" tabindex="-1"></a><span class="co">#&gt;             1.3,</span></span>
+<span id="cb5-65"><a href="#cb5-65" tabindex="-1"></a><span class="co">#&gt;             0.2,</span></span>
+<span id="cb5-66"><a href="#cb5-66" tabindex="-1"></a><span class="co">#&gt;             &quot;setosa&quot;</span></span>
+<span id="cb5-67"><a href="#cb5-67" tabindex="-1"></a><span class="co">#&gt;         ],</span></span>
+<span id="cb5-68"><a href="#cb5-68" tabindex="-1"></a><span class="co">#&gt;         [</span></span>
+<span id="cb5-69"><a href="#cb5-69" tabindex="-1"></a><span class="co">#&gt;             4.6,</span></span>
+<span id="cb5-70"><a href="#cb5-70" tabindex="-1"></a><span class="co">#&gt;             3.1,</span></span>
+<span id="cb5-71"><a href="#cb5-71" tabindex="-1"></a><span class="co">#&gt;             1.5,</span></span>
+<span id="cb5-72"><a href="#cb5-72" tabindex="-1"></a><span class="co">#&gt;             0.2,</span></span>
+<span id="cb5-73"><a href="#cb5-73" tabindex="-1"></a><span class="co">#&gt;             &quot;setosa&quot;</span></span>
+<span id="cb5-74"><a href="#cb5-74" tabindex="-1"></a><span class="co">#&gt;         ],</span></span>
+<span id="cb5-75"><a href="#cb5-75" tabindex="-1"></a><span class="co">#&gt;         [</span></span>
+<span id="cb5-76"><a href="#cb5-76" tabindex="-1"></a><span class="co">#&gt;             5.0,</span></span>
+<span id="cb5-77"><a href="#cb5-77" tabindex="-1"></a><span class="co">#&gt;             3.6,</span></span>
+<span id="cb5-78"><a href="#cb5-78" tabindex="-1"></a><span class="co">#&gt;             1.4,</span></span>
+<span id="cb5-79"><a href="#cb5-79" tabindex="-1"></a><span class="co">#&gt;             0.2,</span></span>
+<span id="cb5-80"><a href="#cb5-80" tabindex="-1"></a><span class="co">#&gt;             &quot;setosa&quot;</span></span>
+<span id="cb5-81"><a href="#cb5-81" tabindex="-1"></a><span class="co">#&gt;         ]</span></span>
+<span id="cb5-82"><a href="#cb5-82" tabindex="-1"></a><span class="co">#&gt;     ]</span></span>
 <span id="cb5-83"><a href="#cb5-83" tabindex="-1"></a><span class="co">#&gt; }</span></span></code></pre></div>
 <p>Similarly, to read a Dataset JSON object, you can use the function
 <code>read_dataset_json()</code>. This function will return a dataframe
@@ -566,48 +570,127 @@ to you, ready to use. To read, provide a file path.</p>
 <p>You can also provide single element character vector of the JSON text
 already read in.</p>
 <div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a>dat <span class="ot">&lt;-</span> <span class="fu">read_dataset_json</span>(js)</span></code></pre></div>
+</div>
+<div id="ndjson" class="section level2">
+<h2>NDJSON</h2>
+<p>Dataset JSON also has a newline-delimited representation, which
+carries exactly the same content with different framing: the dataset
+metadata as a single JSON object on line 1, then one JSON array per data
+row. This makes a dataset straightforward to read or write a row at a
+time rather than loading the whole file.</p>
+<p><code>write_dataset_ndjson()</code> and
+<code>read_dataset_ndjson()</code> mirror their JSON counterparts, and
+<code>validate_dataset_ndjson()</code> checks a file against the Dataset
+NDJSON schema.</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a><span class="fu">write_dataset_ndjson</span>(ds_json, <span class="at">file =</span> <span class="st">&quot;iris.ndjson&quot;</span>)</span>
+<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a></span>
+<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a>dat <span class="ot">&lt;-</span> <span class="fu">read_dataset_ndjson</span>(<span class="st">&quot;iris.ndjson&quot;</span>)</span></code></pre></div>
+<p>As with <code>write_dataset_json()</code>, leaving out
+<code>file</code> returns the content instead, which shows the shape of
+the format - the metadata object first, then one array per row:</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a>nd <span class="ot">&lt;-</span> <span class="fu">write_dataset_ndjson</span>(ds_json)</span>
+<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a><span class="fu">cat</span>(nd)</span>
+<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a><span class="co">#&gt; {&quot;datasetJSONCreationDateTime&quot;:&quot;2026-09-03T20:47:20&quot;,&quot;datasetJSONVersion&quot;:&quot;1.1.0&quot;,&quot;itemGroupOID&quot;:&quot;IG.IRIS&quot;,&quot;records&quot;:5,&quot;name&quot;:&quot;IRIS&quot;,&quot;label&quot;:&quot;Iris&quot;,&quot;columns&quot;:[{&quot;itemOID&quot;:&quot;IT.IR.Sepal.Length&quot;,&quot;name&quot;:&quot;Sepal.Length&quot;,&quot;label&quot;:&quot;Sepal Length&quot;,&quot;dataType&quot;:&quot;float&quot;,&quot;keySequence&quot;:2},{&quot;itemOID&quot;:&quot;IT.IR.Sepal.Width&quot;,&quot;name&quot;:&quot;Sepal.Width&quot;,&quot;label&quot;:&quot;Sepal Width&quot;,&quot;dataType&quot;:&quot;float&quot;},{&quot;itemOID&quot;:&quot;IT.IR.Petal.Length&quot;,&quot;name&quot;:&quot;Petal.Length&quot;,&quot;label&quot;:&quot;Petal Length&quot;,&quot;dataType&quot;:&quot;float&quot;,&quot;keySequence&quot;:3},{&quot;itemOID&quot;:&quot;IT.IR.Petal.Width&quot;,&quot;name&quot;:&quot;Petal.Width&quot;,&quot;label&quot;:&quot;Petal Width&quot;,&quot;dataType&quot;:&quot;float&quot;},{&quot;itemOID&quot;:&quot;IT.IR.Species&quot;,&quot;name&quot;:&quot;Species&quot;,&quot;label&quot;:&quot;Flower Species&quot;,&quot;dataType&quot;:&quot;string&quot;,&quot;length&quot;:10,&quot;keySequence&quot;:1}]}</span></span>
+<span id="cb9-4"><a href="#cb9-4" tabindex="-1"></a><span class="co">#&gt; [5.1,3.5,1.4,0.2,&quot;setosa&quot;]</span></span>
+<span id="cb9-5"><a href="#cb9-5" tabindex="-1"></a><span class="co">#&gt; [4.9,3.0,1.4,0.2,&quot;setosa&quot;]</span></span>
+<span id="cb9-6"><a href="#cb9-6" tabindex="-1"></a><span class="co">#&gt; [4.7,3.2,1.3,0.2,&quot;setosa&quot;]</span></span>
+<span id="cb9-7"><a href="#cb9-7" tabindex="-1"></a><span class="co">#&gt; [4.6,3.1,1.5,0.2,&quot;setosa&quot;]</span></span>
+<span id="cb9-8"><a href="#cb9-8" tabindex="-1"></a><span class="co">#&gt; [5.0,3.6,1.4,0.2,&quot;setosa&quot;]</span></span></code></pre></div>
+<p>The two formats are interchangeable - reading <code>iris.json</code>
+and <code>iris.ndjson</code> written from the same object gives you the
+same dataframe, with the same attributes.</p>
+</div>
+<div id="compressed-files" class="section level2">
+<h2>Compressed files</h2>
+<p>Dataset JSON files are text, and text of this shape compresses very
+well. The standard defines a compressed representation, DSJC, which is
+simply the NDJSON content of a dataset as a zLib stream - no header, no
+wrapper, nothing but the compressed bytes. Files use the
+<code>.dsjc</code> extension.</p>
+<p><code>write_dataset_dsjc()</code>, <code>read_dataset_dsjc()</code>
+and <code>validate_dataset_dsjc()</code> mirror the other two sets of
+functions:</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a><span class="fu">write_dataset_dsjc</span>(ds_json, <span class="at">file =</span> <span class="st">&quot;iris.dsjc&quot;</span>)</span>
+<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a></span>
+<span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a>dat <span class="ot">&lt;-</span> <span class="fu">read_dataset_dsjc</span>(<span class="st">&quot;iris.dsjc&quot;</span>)</span></code></pre></div>
+<p>Because a DSJC file is a plain zLib stream, any zLib implementation
+can read it, and a stream produced by another tool reads here. The
+example files shipped with the package show the size difference on a
+small dataset:</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" tabindex="-1"></a>sizes <span class="ot">&lt;-</span> <span class="fu">vapply</span>(</span>
+<span id="cb11-2"><a href="#cb11-2" tabindex="-1"></a>  <span class="fu">c</span>(<span class="st">&quot;dm.json&quot;</span>, <span class="st">&quot;dm.ndjson&quot;</span>, <span class="st">&quot;dm.dsjc&quot;</span>),</span>
+<span id="cb11-3"><a href="#cb11-3" tabindex="-1"></a>  <span class="cf">function</span>(f) <span class="fu">file.size</span>(<span class="fu">datasetjson_example</span>(f)),</span>
+<span id="cb11-4"><a href="#cb11-4" tabindex="-1"></a>  <span class="fu">numeric</span>(<span class="dv">1</span>)</span>
+<span id="cb11-5"><a href="#cb11-5" tabindex="-1"></a>)</span>
+<span id="cb11-6"><a href="#cb11-6" tabindex="-1"></a></span>
+<span id="cb11-7"><a href="#cb11-7" tabindex="-1"></a>sizes</span>
+<span id="cb11-8"><a href="#cb11-8" tabindex="-1"></a><span class="co">#&gt;   dm.json dm.ndjson   dm.dsjc </span></span>
+<span id="cb11-9"><a href="#cb11-9" tabindex="-1"></a><span class="co">#&gt;      7984      7976      1644</span></span></code></pre></div>
+<p>The saving grows with the dataset. On a 300,000 row file the NDJSON
+is 26 MB and the DSJC around 11 MB.</p>
+<p><code>level</code> controls the compression, from 0 (none) to 9. It
+defaults to 9, which the standard recommends for data exchange, but the
+top of the range earns little: on that same 26 MB dataset, level 1 wrote
+in a fifth of the time for a file only 4% larger. Reading is unaffected
+by the level a file was written at.</p>
+<p>With no <code>file</code> argument, <code>write_dataset_dsjc()</code>
+returns a raw vector rather than a character string, since the format is
+binary:</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" tabindex="-1"></a>bytes <span class="ot">&lt;-</span> <span class="fu">write_dataset_dsjc</span>(ds_json)</span>
+<span id="cb12-2"><a href="#cb12-2" tabindex="-1"></a></span>
+<span id="cb12-3"><a href="#cb12-3" tabindex="-1"></a><span class="fu">head</span>(bytes)</span>
+<span id="cb12-4"><a href="#cb12-4" tabindex="-1"></a><span class="co">#&gt; [1] 78 da 95 92 d1 4e</span></span></code></pre></div>
+<p>Rows are compressed as they are written, so producing a large file
+never holds the whole uncompressed dataset in memory.</p>
 <p>The data frame that’s read in is itself a <code>datasetjson</code>
 object and carries a number of attributes. For example, opening the
 dataframe within the RStudio IDE will present the variable labels.
 Additionally, the extra metadata provided in a Dataset JSON file is
 available. The attributes provided follow the naming convention of the
 Dataset JSON standard.</p>
-<p>We’ve provided some helper functions to leverage this data further.
-If you’d like to grab the column metadata from the <code>columns</code>
-element, you can use the function <code>get_column_metadata()</code></p>
-<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a><span class="fu">get_column_metadata</span>(dat)</span>
-<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a><span class="co">#&gt;              itemOID         name          label dataType keySequence</span></span>
-<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a><span class="co">#&gt; 1 IT.IR.Sepal.Length Sepal.Length   Sepal Length    float           2</span></span>
-<span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a><span class="co">#&gt; 2  IT.IR.Sepal.Width  Sepal.Width    Sepal Width    float          NA</span></span>
-<span id="cb8-5"><a href="#cb8-5" tabindex="-1"></a><span class="co">#&gt; 3 IT.IR.Petal.Length Petal.Length   Petal Length    float           3</span></span>
-<span id="cb8-6"><a href="#cb8-6" tabindex="-1"></a><span class="co">#&gt; 4  IT.IR.Petal.Width  Petal.Width    Petal Width    float          NA</span></span>
-<span id="cb8-7"><a href="#cb8-7" tabindex="-1"></a><span class="co">#&gt; 5      IT.IR.Species      Species Flower Species   string           1</span></span>
-<span id="cb8-8"><a href="#cb8-8" tabindex="-1"></a><span class="co">#&gt;   targetDataType length displayFormat</span></span>
-<span id="cb8-9"><a href="#cb8-9" tabindex="-1"></a><span class="co">#&gt; 1           &lt;NA&gt;     NA          &lt;NA&gt;</span></span>
-<span id="cb8-10"><a href="#cb8-10" tabindex="-1"></a><span class="co">#&gt; 2           &lt;NA&gt;     NA          &lt;NA&gt;</span></span>
-<span id="cb8-11"><a href="#cb8-11" tabindex="-1"></a><span class="co">#&gt; 3           &lt;NA&gt;     NA          &lt;NA&gt;</span></span>
-<span id="cb8-12"><a href="#cb8-12" tabindex="-1"></a><span class="co">#&gt; 4           &lt;NA&gt;     NA          &lt;NA&gt;</span></span>
-<span id="cb8-13"><a href="#cb8-13" tabindex="-1"></a><span class="co">#&gt; 5           &lt;NA&gt;     10          &lt;NA&gt;</span></span></code></pre></div>
+</div>
+<div id="working-with-the-metadata" class="section level2">
+<h2>Working with the metadata</h2>
+<p>Everything above is what you need to read and write Dataset JSON
+files. The two functions in this section are optional conveniences for
+working with the column metadata once a file is read, and can be skipped
+on a first pass.</p>
+<p>If you’d like to grab the column metadata from the
+<code>columns</code> element, you can use the function
+<code>get_column_metadata()</code></p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" tabindex="-1"></a><span class="fu">get_column_metadata</span>(dat)</span>
+<span id="cb13-2"><a href="#cb13-2" tabindex="-1"></a><span class="co">#&gt;              itemOID         name          label dataType keySequence</span></span>
+<span id="cb13-3"><a href="#cb13-3" tabindex="-1"></a><span class="co">#&gt; 1 IT.IR.Sepal.Length Sepal.Length   Sepal Length    float           2</span></span>
+<span id="cb13-4"><a href="#cb13-4" tabindex="-1"></a><span class="co">#&gt; 2  IT.IR.Sepal.Width  Sepal.Width    Sepal Width    float          NA</span></span>
+<span id="cb13-5"><a href="#cb13-5" tabindex="-1"></a><span class="co">#&gt; 3 IT.IR.Petal.Length Petal.Length   Petal Length    float           3</span></span>
+<span id="cb13-6"><a href="#cb13-6" tabindex="-1"></a><span class="co">#&gt; 4  IT.IR.Petal.Width  Petal.Width    Petal Width    float          NA</span></span>
+<span id="cb13-7"><a href="#cb13-7" tabindex="-1"></a><span class="co">#&gt; 5      IT.IR.Species      Species Flower Species   string           1</span></span>
+<span id="cb13-8"><a href="#cb13-8" tabindex="-1"></a><span class="co">#&gt;   targetDataType length displayFormat</span></span>
+<span id="cb13-9"><a href="#cb13-9" tabindex="-1"></a><span class="co">#&gt; 1           &lt;NA&gt;     NA          &lt;NA&gt;</span></span>
+<span id="cb13-10"><a href="#cb13-10" tabindex="-1"></a><span class="co">#&gt; 2           &lt;NA&gt;     NA          &lt;NA&gt;</span></span>
+<span id="cb13-11"><a href="#cb13-11" tabindex="-1"></a><span class="co">#&gt; 3           &lt;NA&gt;     NA          &lt;NA&gt;</span></span>
+<span id="cb13-12"><a href="#cb13-12" tabindex="-1"></a><span class="co">#&gt; 4           &lt;NA&gt;     NA          &lt;NA&gt;</span></span>
+<span id="cb13-13"><a href="#cb13-13" tabindex="-1"></a><span class="co">#&gt; 5           &lt;NA&gt;     10          &lt;NA&gt;</span></span></code></pre></div>
 <p>With this column metadata available, you can additionally use the
 function <code>set_variable_attributes()</code> to apply the
 <code>columns</code> metadata to the individual variables within the
 data frame.</p>
-<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a>dat <span class="ot">&lt;-</span> <span class="fu">set_variable_attributes</span>(dat)</span>
-<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a><span class="fu">attributes</span>(dat<span class="sc">$</span>Species)</span>
-<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a><span class="co">#&gt; $label</span></span>
-<span id="cb9-4"><a href="#cb9-4" tabindex="-1"></a><span class="co">#&gt; [1] &quot;Flower Species&quot;</span></span>
-<span id="cb9-5"><a href="#cb9-5" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb9-6"><a href="#cb9-6" tabindex="-1"></a><span class="co">#&gt; $itemOID</span></span>
-<span id="cb9-7"><a href="#cb9-7" tabindex="-1"></a><span class="co">#&gt; [1] &quot;IT.IR.Species&quot;</span></span>
-<span id="cb9-8"><a href="#cb9-8" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb9-9"><a href="#cb9-9" tabindex="-1"></a><span class="co">#&gt; $dataType</span></span>
-<span id="cb9-10"><a href="#cb9-10" tabindex="-1"></a><span class="co">#&gt; [1] &quot;string&quot;</span></span>
-<span id="cb9-11"><a href="#cb9-11" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb9-12"><a href="#cb9-12" tabindex="-1"></a><span class="co">#&gt; $keySequence</span></span>
-<span id="cb9-13"><a href="#cb9-13" tabindex="-1"></a><span class="co">#&gt; [1] 1</span></span>
-<span id="cb9-14"><a href="#cb9-14" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb9-15"><a href="#cb9-15" tabindex="-1"></a><span class="co">#&gt; $length</span></span>
-<span id="cb9-16"><a href="#cb9-16" tabindex="-1"></a><span class="co">#&gt; [1] 10</span></span></code></pre></div>
+<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" tabindex="-1"></a>dat <span class="ot">&lt;-</span> <span class="fu">set_variable_attributes</span>(dat)</span>
+<span id="cb14-2"><a href="#cb14-2" tabindex="-1"></a><span class="fu">attributes</span>(dat<span class="sc">$</span>Species)</span>
+<span id="cb14-3"><a href="#cb14-3" tabindex="-1"></a><span class="co">#&gt; $label</span></span>
+<span id="cb14-4"><a href="#cb14-4" tabindex="-1"></a><span class="co">#&gt; [1] &quot;Flower Species&quot;</span></span>
+<span id="cb14-5"><a href="#cb14-5" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb14-6"><a href="#cb14-6" tabindex="-1"></a><span class="co">#&gt; $itemOID</span></span>
+<span id="cb14-7"><a href="#cb14-7" tabindex="-1"></a><span class="co">#&gt; [1] &quot;IT.IR.Species&quot;</span></span>
+<span id="cb14-8"><a href="#cb14-8" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb14-9"><a href="#cb14-9" tabindex="-1"></a><span class="co">#&gt; $dataType</span></span>
+<span id="cb14-10"><a href="#cb14-10" tabindex="-1"></a><span class="co">#&gt; [1] &quot;string&quot;</span></span>
+<span id="cb14-11"><a href="#cb14-11" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb14-12"><a href="#cb14-12" tabindex="-1"></a><span class="co">#&gt; $length</span></span>
+<span id="cb14-13"><a href="#cb14-13" tabindex="-1"></a><span class="co">#&gt; [1] 10</span></span>
+<span id="cb14-14"><a href="#cb14-14" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb14-15"><a href="#cb14-15" tabindex="-1"></a><span class="co">#&gt; $keySequence</span></span>
+<span id="cb14-16"><a href="#cb14-16" tabindex="-1"></a><span class="co">#&gt; [1] 1</span></span></code></pre></div>
 </div>
 </div>
 

@@ -5,16 +5,20 @@
 #' @param pretty If TRUE, write with readable formatting. *Note: The Dataset
 #'   JSON standard prefers compressed formatting without line feeds. It is not
 #'   recommended you use pretty printing for submission purposes.*
-#' @param float_as_decimals If TRUE, Convert float variables to "decimal" data
-#'   type in the JSON output. This will manually convert the numeric values
-#'   using the `format()` function using the number of digits specified in
-#'   `digits`, bypassing the `yyjsonr` handling of float values and writing the
-#'   numbers out as JSON character strings. See the [Dataset JSON user
+#' @param float_as_decimals If TRUE, write float variables as the "decimal"
+#'   data type, quoting the numbers as JSON strings rather than writing them as
+#'   JSON numbers. This is an interoperability choice for systems that expect
+#'   the decimal type; it is not needed for precision, as numbers are written at
+#'   full precision either way, and setting it raises a warning to that effect.
+#'   See the [Dataset JSON user
 #'   guide](https://wiki.cdisc.org/display/PUB/Precision+and+Rounding) for more
 #'   information. Defaults to FALSE
-#' @param digits When using `float_as_decimals`, the number of digits to use
-#'   when writing out floats. Going higher than 16 may start writing otherwise
-#'   sufficiently precise decimals (i.e. .2) to long strings.
+#' @param digits Deprecated and ignored. Decimals are written at
+#'   whatever precision reads back as the same value, so there is no precision
+#'   for this argument to control. It is ignored, and supplying it warns. If you
+#'   need values rendered at a fixed precision, format the column to character
+#'   yourself and declare it as `decimal`/`decimal` in the column metadata; the
+#'   writer passes such columns through verbatim.
 #'
 #' @return NULL when file written to disk, otherwise character string
 #' @export
@@ -31,22 +35,75 @@
 #' js <- write_dataset_json(ds_json)
 #'
 #' # Write to disk
-#' \dontrun{
-#'   write_dataset_json(ds_json, "path/to/file.json")
-#' }
-write_dataset_json <- function(x, file, pretty=FALSE, float_as_decimals=FALSE, digits=16) {
+#' write_dataset_json(ds_json, tempfile(fileext = ".json"))
+#'
+#' # float_as_decimals writes floats as the "decimal" type, quoting the numbers.
+#' # It is an interoperability choice for systems that require that type - it is
+#' # not needed for precision, and setting it warns to say so.
+#' js <- suppressWarnings(write_dataset_json(ds_json, float_as_decimals = TRUE))
+#'
+#' # `digits` is deprecated and ignored; decimals are written at whatever
+#' # precision reads back as the same value
+#' js <- suppressWarnings(write_dataset_json(ds_json, digits = 16))
+write_dataset_json <- function(
+  x,
+  file,
+  pretty = FALSE,
+  float_as_decimals = FALSE,
+  digits = NULL
+) {
+  prepared <- prepare_dataset_for_write(x, float_as_decimals, digits)
+
+  if (!missing(file)) {
+    # Make sure the output path exists
+    if (!dir.exists(dirname(file))) {
+      stop("Folder supplied to `file` does not exist", call. = FALSE)
+    }
+  }
+
+  # Serialize natively. Numbers go through yyjson's writer, which emits the
+  # shortest representation that parses back to the same double.
+  .Call(
+    C_write_dsjson,
+    prepared$meta,
+    prepared$columns,
+    prepared$data,
+    prepared$as_decimal,
+    isTRUE(pretty),
+    if (missing(file)) NULL else file
+  )
+}
+
+#' Shared preparation for the JSON and NDJSON writers
+#'
+#' Validates the date/time column types, renders them to character, flags the
+#' columns to be written as decimal strings, and assembles the metadata in the
+#' order the standard recommends.
+#'
+#' @param x A datasetjson object
+#' @param float_as_decimals Flag float columns to be written as decimal strings
+#'
+#' @return A list with `meta`, `columns`, `data` and `as_decimal`
+#' @noRd
+prepare_dataset_for_write <- function(x, float_as_decimals = FALSE, digits = NULL) {
   stopifnot_datasetjson(x)
 
   meta <- attributes(x)
 
+  # Columns to serialize as decimal strings rather than JSON numbers. The
+  # values themselves are rendered in C, at whatever precision round-trips.
+  as_decimal <- rep(FALSE, length(meta$columns))
+
   # Find all date, datetime and time columns and convert to character
   for (i in seq_along(meta$columns)) {
-
-
     y <- meta$columns[[i]]
 
     # Make sure metadata is compliant
-    if (y$dataType %in% c("date", "datetime", "time") & !("targetDataType" %in% names(y))) {
+    if (
+      y$dataType %in%
+        c("date", "datetime", "time") &
+        !("targetDataType" %in% names(y))
+    ) {
       if (!inherits(x[[y$name]], "character")) {
         stop_write_error(
           y$name,
@@ -55,36 +112,92 @@ write_dataset_json <- function(x, file, pretty=FALSE, float_as_decimals=FALSE, d
       }
     }
 
-    if(y$dataType %in% c("date", "datetime", "time") & (!is.null(y$targetDataType) && y$targetDataType == "integer")) {
+    if (
+      y$dataType %in%
+        c("date", "datetime", "time") &
+        (!is.null(y$targetDataType) && y$targetDataType == "integer")
+    ) {
       # Convert date
       if (y$dataType == "date") {
-        x[y$name] <- format(x[[y$name]], "%Y-%m-%d", tz='UTC')
+        x[y$name] <- format(x[[y$name]], "%Y-%m-%d", tz = 'UTC')
       }
 
       # Convert datetime
       if (y$dataType == "datetime") {
         # Ensure type and timezone is right.
-        if (!inherits(x[[y$name]], "POSIXt") || !("UTC" %in% attr(x[[y$name]], 'tzone'))){
-          stop_write_error(y$name, "Date time variable must be provided as POSIXlt type with timezone set to UTC.")
+        if (
+          !inherits(x[[y$name]], "POSIXt") ||
+            !("UTC" %in% attr(x[[y$name]], 'tzone'))
+        ) {
+          stop_write_error(
+            y$name,
+            "Date time variable must be provided as POSIXlt type with timezone set to UTC."
+          )
         }
-        x[y$name] <- strftime(x[[y$name]], "%Y-%m-%dT%H:%M:%S", tz='UTC')
+        x[y$name] <- strftime(x[[y$name]], "%Y-%m-%dT%H:%M:%S", tz = 'UTC')
       }
 
       # Convert time
       if (y$dataType == "time") {
-        if (y$dataType == "time" & !inherits(x[[y$name]], c("Period", "difftime", "ITime"))) {
+        if (
+          y$dataType == "time" &
+            !inherits(x[[y$name]], c("Period", "difftime", "ITime"))
+        ) {
           stop_write_error(
             y$name,
             "If dataType is time and targetDataType is integer, the input variable type must be a lubridate Period, an hms difftime, or a data.table ITime object"
           )
         }
-        x[y$name] <- strftime(as.numeric(x[[y$name]]), "%H:%M:%S", tz='UTC')
+        # as.POSIXlt() only defaults `origin` from R 4.3.0, and this package
+        # supports R >= 4.0, so it is supplied explicitly
+        x[y$name] <- strftime(
+          as.POSIXlt(
+            as.numeric(x[[y$name]]),
+            tz = 'UTC',
+            origin = "1970-01-01"
+          ),
+          "%H:%M:%S"
+        )
       }
-    } else if (float_as_decimals && y$dataType %in% c("float", 'double', 'decimal')) {
+    } else if (
+      float_as_decimals && y$dataType %in% c("float", 'double', 'decimal')
+    ) {
       meta$columns[[i]]['dataType'] <- "decimal"
-      meta$columns[[i]]['targetDataType'] <- "decimal"
-      x[y$name] <- format(x[y$name], digits=digits)
+      meta$columns[[i]]["targetDataType"] <- "decimal"
+      as_decimal[i] <- TRUE
     }
+  }
+
+  # Advisories are raised here rather than up front, because whether
+  # `float_as_decimals` applied to anything depends on the column types
+  advisory <- paste0(
+    "As of datasetjson 0.4.0 numbers are written and read at full precision, ",
+    "so `float_as_decimals = TRUE` is no longer needed to protect against ",
+    "rounding and `FALSE` is preferred. Set it only when the receiving system ",
+    "requires the `decimal` data type."
+  )
+
+  if (!is.null(digits)) {
+    warning(
+      "`digits` is deprecated and ignored. Decimals are written at whatever ",
+      "precision reads back as the same value, so there is nothing for it to ",
+      "control - every setting below 17 significant digits only made the ",
+      "output less accurate. To render values at a fixed precision, format ",
+      "the column to character yourself and declare it as `decimal`",
+      "/`decimal` in the column metadata.",
+      call. = FALSE
+    )
+  }
+
+  if (isTRUE(float_as_decimals) && !any(as_decimal)) {
+    warning(
+      "`float_as_decimals = TRUE` had no effect: this dataset has no float, ",
+      "double or decimal columns. The output is identical to ",
+      "`float_as_decimals = FALSE`.",
+      call. = FALSE
+    )
+  } else if (isTRUE(float_as_decimals)) {
+    warning(advisory, call. = FALSE)
   }
 
   # Populate the creation datetime
@@ -108,50 +221,28 @@ write_dataset_json <- function(x, file, pretty=FALSE, float_as_decimals=FALSE, d
     "itemGroupOID",
     "records",
     "name",
-    "label",
-    "columns")
-    ]
+    "label"
+  )]
 
   temp <- remove_nulls(temp)
 
-  # add data rows
-  temp$rows <- unname(x)
-
-  if (!missing(file)) {
-    # Make sure the output path exists
-    if(!dir.exists(dirname(file))) {
-      stop("Folder supplied to `file` does not exist", call.=FALSE)
-    }
-  }
-
-  # Create the JSON text
-  json_opts <- yyjsonr::opts_write_json(
-    pretty = pretty,
-    auto_unbox = TRUE,
+  list(
+    meta = temp,
+    columns = unname(meta$columns),
+    data = unclass(x)[names(x)],
+    as_decimal = as_decimal
   )
-
-  if (!missing(file)) {
-    # Write file to disk
-    yyjsonr::write_json_file(
-      temp,
-      filename = file,
-      opts = json_opts
-    )
-  } else {
-    # Print to console
-    yyjsonr::write_json_str(
-      temp,
-      opts = json_opts
-    )
-  }
 }
 
-stop_write_error <- function(varname, msg){
+stop_write_error <- function(varname, msg) {
   stop(
-    sprintf(paste(
-      "Please check the variable %s.",
-      msg,
-      sep="\n  "),
-      varname)
+    sprintf(
+      paste(
+        "Please check the variable %s.",
+        msg,
+        sep = "\n  "
+      ),
+      varname
+    )
   )
 }

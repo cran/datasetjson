@@ -1,7 +1,10 @@
 ## ----include = FALSE----------------------------------------------------------
+# haven is a suggested package rather than a hard dependency, and every chunk
+# below builds on the dataset it reads, so skip them all if it is unavailable
 knitr::opts_chunk$set(
   collapse = TRUE,
-  comment = "#>"
+  comment = "#>",
+  eval = requireNamespace("haven", quietly = TRUE)
 )
 
 ## ----setup--------------------------------------------------------------------
@@ -37,7 +40,7 @@ extract_xpt_meta <- function(n, .data) {
     out$targetDataType <- "integer"
   } else {
     out$dataType <- "string"
-    out$length <- max(purrr::map_int(.data[[n]], nchar))
+    out$length <- max(purrr::map_int(.data[[n]], nchar), 1L)
   }
   
   out$itemOID <- n
@@ -66,6 +69,9 @@ ds_json <- dataset_json(
 json_file_content <- write_dataset_json(ds_json)
 
 ## -----------------------------------------------------------------------------
-# Check schema compliance
-validate_dataset_json(json_file_content)
+# Check schema compliance. jsonvalidate is a suggested package rather than a
+# hard dependency, so guard the call.
+if (requireNamespace("jsonvalidate", quietly = TRUE)) {
+  validate_dataset_json(json_file_content)
+}
 

@@ -41,13 +41,28 @@ out <- read_dataset_json(json_out)
 test_df$float_col - out$float_col
 
 ## ----conversion---------------------------------------------------------------
-json_out <-write_dataset_json(dsjson, float_as_decimals = TRUE)
+json_out <- write_dataset_json(dsjson, float_as_decimals = TRUE)
 
-out <- read_dataset_json(json_out, decimals_as_floats = TRUE)
+out <- read_dataset_json(json_out)
 
 test_df$float_col - out$float_col
 
-## ----digits-------------------------------------------------------------------
-print(format(.2, digits=16))
-print(format(.2, digits=17))
+## ----digits, warning=FALSE----------------------------------------------------
+cat(write_dataset_json(dsjson, float_as_decimals = TRUE, pretty = TRUE))
+
+## ----fixed_precision----------------------------------------------------------
+fixed <- test_df
+fixed$float_col <- format(fixed$float_col, digits = 8, trim = TRUE)
+
+fixed_items <- test_items
+fixed_items$dataType[fixed_items$name == "float_col"] <- "decimal"
+fixed_items$targetDataType <- ifelse(fixed_items$name == "float_col",
+                                     "decimal", NA_character_)
+
+fixed_json <- write_dataset_json(
+  dataset_json(fixed, item_oid = "test_df", name = "test_df",
+               dataset_label = "test_df", columns = fixed_items)
+)
+
+read_dataset_json(fixed_json)$float_col
 

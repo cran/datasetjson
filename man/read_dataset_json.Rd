@@ -4,12 +4,10 @@
 \alias{read_dataset_json}
 \title{Read a Dataset JSON to datasetjson object}
 \usage{
-read_dataset_json(file, decimals_as_floats = FALSE)
+read_dataset_json(file)
 }
 \arguments{
 \item{file}{File path or URL of a Dataset JSON file}
-
-\item{decimals_as_floats}{Convert variables of "decimal" type to float}
 }
 \value{
 A dataframe with additional attributes attached containing the
@@ -52,14 +50,21 @@ these fields.
 }
 \examples{
 # Read from disk
+dat <- read_dataset_json(datasetjson_example("dm.json"))
+
+# Read from a URL
 \dontrun{
-  dat <- read_dataset_json("path/to/file.json")
- # Read file from URL
-  dat <- dataset_json('https://www.somesite.com/file.json')
+  dat <- read_dataset_json('https://www.somesite.com/file.json')
 }
 
 # Read from an already imported character vector
-ds_json <- dataset_json(iris, "IG.IRIS", "IRIS", "Iris", columns=iris_items)
+ds_json <- dataset_json(
+  iris,
+  item_oid = "IG.IRIS",
+  name = "IRIS",
+  dataset_label = "Iris",
+  columns = iris_items
+)
 js <- write_dataset_json(ds_json)
 dat <- read_dataset_json(js)
 }

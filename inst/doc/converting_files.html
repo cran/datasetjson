@@ -48,8 +48,9 @@ overflow: visible;
 }
 </style>
 <style type="text/css" data-origin="pandoc">
+html { -webkit-text-size-adjust: 100%; }
 pre > code.sourceCode { white-space: pre; position: relative; }
-pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
 pre > code.sourceCode > span:empty { height: 1.2em; }
 .sourceCode { overflow: visible; }
 code.sourceCode > span { color: inherit; text-decoration: inherit; }
@@ -60,7 +61,7 @@ div.sourceCode { overflow: auto; }
 }
 @media print {
 pre > code.sourceCode { white-space: pre-wrap; }
-pre > code.sourceCode > span { display: inline-block; text-indent: -5em; padding-left: 5em; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
 }
 pre.numberSource code
 { counter-reset: source-line 0; }
@@ -355,7 +356,7 @@ itself. Inevitably some information will get lost while being exchanged
 because of differences of what information was applied or how R
 interprets SAS datasets. This is one reason why
 <strong>{datasetjson}</strong> improves upon XPTs as an exchange format.
-In leiu of external metadata, here’s an example of how you can make a
+In lieu of external metadata, here’s an example of how you can make a
 best effort conversion.</p>
 <div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a>adsl <span class="ot">&lt;-</span> haven<span class="sc">::</span><span class="fu">read_xpt</span>(<span class="fu">file.path</span>(<span class="fu">system.file</span>(<span class="at">package=</span><span class="st">&#39;datasetjson&#39;</span>), <span class="st">&quot;adsl.xpt&quot;</span>))</span>
 <span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a></span>
@@ -386,7 +387,7 @@ best effort conversion.</p>
 <span id="cb2-27"><a href="#cb2-27" tabindex="-1"></a>    out<span class="sc">$</span>targetDataType <span class="ot">&lt;-</span> <span class="st">&quot;integer&quot;</span></span>
 <span id="cb2-28"><a href="#cb2-28" tabindex="-1"></a>  } <span class="cf">else</span> {</span>
 <span id="cb2-29"><a href="#cb2-29" tabindex="-1"></a>    out<span class="sc">$</span>dataType <span class="ot">&lt;-</span> <span class="st">&quot;string&quot;</span></span>
-<span id="cb2-30"><a href="#cb2-30" tabindex="-1"></a>    out<span class="sc">$</span>length <span class="ot">&lt;-</span> <span class="fu">max</span>(purrr<span class="sc">::</span><span class="fu">map_int</span>(.data[[n]], nchar))</span>
+<span id="cb2-30"><a href="#cb2-30" tabindex="-1"></a>    out<span class="sc">$</span>length <span class="ot">&lt;-</span> <span class="fu">max</span>(purrr<span class="sc">::</span><span class="fu">map_int</span>(.data[[n]], nchar), <span class="dv">1</span><span class="dt">L</span>)</span>
 <span id="cb2-31"><a href="#cb2-31" tabindex="-1"></a>  }</span>
 <span id="cb2-32"><a href="#cb2-32" tabindex="-1"></a>  </span>
 <span id="cb2-33"><a href="#cb2-33" tabindex="-1"></a>  out<span class="sc">$</span>itemOID <span class="ot">&lt;-</span> n</span>
@@ -429,12 +430,15 @@ Dataset JSON file.</p>
 <span id="cb3-11"><a href="#cb3-11" tabindex="-1"></a>json_file_content <span class="ot">&lt;-</span> <span class="fu">write_dataset_json</span>(ds_json)</span></code></pre></div>
 <p>Just for good measure, we can confirm the metadata we just created is
 compliant with the schema.</p>
-<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="co"># Check schema compliance</span></span>
-<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a><span class="fu">validate_dataset_json</span>(json_file_content)</span>
-<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a><span class="co">#&gt; File is valid per the Dataset JSON v1.1.0 schema</span></span>
-<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a><span class="co">#&gt; [1] instancePath schemaPath   keyword      params       message     </span></span>
-<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a><span class="co">#&gt; [6] schema       parentSchema dataPath    </span></span>
-<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a><span class="co">#&gt; &lt;0 rows&gt; (or 0-length row.names)</span></span></code></pre></div>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="co"># Check schema compliance. jsonvalidate is a suggested package rather than a</span></span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a><span class="co"># hard dependency, so guard the call.</span></span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a><span class="cf">if</span> (<span class="fu">requireNamespace</span>(<span class="st">&quot;jsonvalidate&quot;</span>, <span class="at">quietly =</span> <span class="cn">TRUE</span>)) {</span>
+<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a>  <span class="fu">validate_dataset_json</span>(json_file_content)</span>
+<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a>}</span>
+<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a><span class="co">#&gt; File is valid per the Dataset JSON v1.1.0 schema</span></span>
+<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a><span class="co">#&gt; [1] instancePath schemaPath   keyword      params       message     </span></span>
+<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a><span class="co">#&gt; [6] schema       parentSchema dataPath    </span></span>
+<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a><span class="co">#&gt; &lt;0 rows&gt; (or 0-length row.names)</span></span></code></pre></div>
 </div>
 <div id="bulk-file-conversion" class="section level2">
 <h2>Bulk File Conversion</h2>
